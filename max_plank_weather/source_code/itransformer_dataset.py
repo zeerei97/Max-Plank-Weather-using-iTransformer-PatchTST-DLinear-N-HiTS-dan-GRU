@@ -1,19 +1,19 @@
 import numpy as np
 import pandas as pd
 
-
+# =====================================================================
+# FUNGSI PREPROCESSING DATA
+# =====================================================================
 def load_and_preprocess_data(file_path: str):
   print('1. Membaca dan memproses dataset multivariate...')
 
-  # Baca file CSV
+  # 1. Baca file CSV
   df = pd.read_csv(
       file_path, parse_dates=['Date Time'], date_format='%d.%m.%Y %H:%M:%S'
   )
-
-  # 1. Buat kolom waktu utama
   df['ds'] = df['Date Time']
 
-  # 2. Buat Fitur Waktu (Cyclical Encoding)
+  # 2. Buat Fitur Eksogen Waktu (Cyclical Encoding)
   minute_of_day = df['ds'].dt.hour * 60 + df['ds'].dt.minute
   df['day_sin'] = np.sin(2 * np.pi * minute_of_day / 1440.0)
   df['day_cos'] = np.cos(2 * np.pi * minute_of_day / 1440.0)
@@ -22,7 +22,7 @@ def load_and_preprocess_data(file_path: str):
 
   hist_exog_cols = ['day_sin', 'day_cos', 'month_sin', 'month_cos']
 
-  # 3. Daftar 14 fitur yang ingin diprediksi sekaligus
+  # 3. Daftar 14 fitur target yang diprediksi
   target_cols = [
       'p (mbar)',
       'T (degC)',
@@ -40,10 +40,10 @@ def load_and_preprocess_data(file_path: str):
       'wd (deg)',
   ]
 
-  # 4. IMPUTASI: Isi missing value pada kolom target dengan rata-rata masing-masing kolom
+  # 4. Imputasi missing values jika ada
   df[target_cols] = df[target_cols].fillna(df[target_cols].mean())
 
-  # 5. UBAH WIDE FORMAT MENJADI LONG FORMAT (pd.melt)
+  # 5. Transformasi Wide Format ke Long Format (pd.melt)
   df_long = pd.melt(
       df,
       id_vars=['ds'] + hist_exog_cols,
@@ -52,7 +52,7 @@ def load_and_preprocess_data(file_path: str):
       value_name='y',
   )
 
-  # Urutkan berdasarkan waktu agar rapi
+  # Urutkan berdasarkan timestamp dan unique_id
   df_long = df_long.sort_values(by=['ds', 'unique_id']).reset_index(drop=True)
 
-  return df_long, hist_exog_cols
+  return df_long, hist_exog_cols, target_cols
