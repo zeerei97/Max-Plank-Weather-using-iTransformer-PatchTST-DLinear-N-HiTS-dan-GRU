@@ -24,20 +24,7 @@ def load_and_preprocess_data(file_path: str):
 
   # 3. Daftar 14 fitur target yang diprediksi
   target_cols = [
-      'p (mbar)',
       'T (degC)',
-      'Tpot (K)',
-      'Tdew (degC)',
-      'rh (%)',
-      'VPmax (mbar)',
-      'VPact (mbar)',
-      'VPdef (mbar)',
-      'sh (g/kg)',
-      'H2OC (mmol/mol)',
-      'rho (g/m**3)',
-      'wv (m/s)',
-      'max. wv (m/s)',
-      'wd (deg)',
   ]
 
   # 4. Imputasi missing values jika ada
@@ -46,7 +33,18 @@ def load_and_preprocess_data(file_path: str):
   # 5. Transformasi Wide Format ke Long Format (pd.melt)
   df_long = pd.melt(
       df,
-      id_vars=['ds'] + hist_exog_cols,
+      id_vars=['ds','p (mbar)','Tpot (K)',
+               'Tdew (degC)',
+               'rh (%)',
+               'VPmax (mbar)',
+               'VPact (mbar)',
+               'VPdef (mbar)',
+               'sh (g/kg)',
+               'H2OC (mmol/mol)',
+               'rho (g/m**3)',
+               'wv (m/s)',
+               'max. wv (m/s)',
+               'wd (deg)',] + hist_exog_cols,
       value_vars=target_cols,
       var_name='unique_id',
       value_name='y',
