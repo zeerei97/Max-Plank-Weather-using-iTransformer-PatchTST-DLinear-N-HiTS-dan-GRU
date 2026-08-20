@@ -3,7 +3,7 @@ import pandas as pd
 
 
 # =====================================================================
-# FUNGSI PREPROCESSING DATA
+# FUNGSI PREPROCESSING DATA (2 SKENARIO DATASET)
 # =====================================================================
 def load_and_preprocess_data(file_path: str):
     print('1. Membaca dan memproses dataset multivariate...')
@@ -13,10 +13,8 @@ def load_and_preprocess_data(file_path: str):
         file_path, parse_dates=['Date Time'], date_format='%d.%m.%Y %H:%M:%S'
     )
 
-    # Perbaikan 1: Rename tanpa 'inplace=True' agar df tidak menjadi None
+    # Rename & Resample ke per jam
     df = df.rename(columns={'Date Time': 'ds'})
-
-    # Perbaikan 2: Set ds sebagai index sebelum resample & interpolate
     df = df.set_index('ds')
     df = df.resample('h').mean()
     df = df.interpolate(method='time').reset_index()
@@ -30,10 +28,9 @@ def load_and_preprocess_data(file_path: str):
 
     time_exog_cols = ['day_sin', 'day_cos', 'month_sin', 'month_cos']
 
-    # 3. Pisahkan Target Utama dan 13 Fitur Cuaca Lainnya
-    target_cols = ['T (degC)']
-
-    weather_exog_cols = [
+    # 3. Definisi Daftar Fitur Cuaca dan Target
+    all_target = [
+        'T (degC)',
         'p (mbar)',
         'Tpot (K)',
         'Tdew (degC)',
@@ -49,21 +46,39 @@ def load_and_preprocess_data(file_path: str):
         'wd (deg)',
     ]
 
-    # Gabungkan semua fitur pendukung ke dalam hist_exog_cols
-    hist_exog_cols = weather_exog_cols + time_exog_cols
+    target_col_1 = ['T (degC)']
+    weather_exog_cols = [col for col in all_target if col not in target_col_1]
+    hist_exog_cols_1 = weather_exog_cols + time_exog_cols
 
-    # 4. Transformasi Wide Format ke Long Format (pd.melt)
-    df_long = pd.melt(
+    # 4. SKENARIO A: Dataset 14 Target (Full Multivariate untuk iTransformer & PatchTST)
+    df_all = pd.melt(
         df,
-        id_vars=['ds'] + hist_exog_cols,
-        value_vars=target_cols,
+        id_vars=['ds'] + time_exog_cols,
+        value_vars=all_target,
         var_name='unique_id',
         value_name='y',
     )
+    df_all = df_all.sort_values(by=['unique_id', 'ds']).reset_index(drop=True)
 
-    # Urutkan berdasarkan timestamp
-    df_long = df_long.sort_values(by=['ds', 'unique_id']).reset_index(
-        drop=True
+    # 5. SKENARIO B: Dataset 1 Target Utama + 13 Weather Exog (Untuk GRU, DLinear, N-HiTS)
+    df_1 = pd.melt(
+        df,
+        id_vars=['ds'] + hist_exog_cols_1,
+        value_vars=target_col_1,
+        var_name='unique_id',
+        value_name='y',
     )
+    df_1 = df_1.sort_values(by=['unique_id', 'ds']).reset_index(drop=True)
 
-    return df_long, hist_exog_cols, target_cols
+    print('✅ Preprocessing selesai:')
+    print(f'   - df_1  (1 target)   : {df_1.shape} | unique_id: {df_1["unique_id"].nunique()}')
+    print(f'   - df_all (14 target)  : {df_all.shape} | unique_id: {df_all["unique_id"].nunique()}')
+
+    return (
+        df_1,
+        df_all,
+        hist_exog_cols_1,
+        time_exog_cols,
+        target_col_1,
+        all_target,
+    )
